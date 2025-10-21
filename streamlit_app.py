@@ -567,19 +567,6 @@ with st.sidebar:
    show_stats()
    
    st.markdown("---")
-   st.subheader("👁️ リアルタイム監視")
-   if st.button("🟢 監視開始" if not st.session_state.monitoring else "🔴 監視停止"):
-       st.session_state.monitoring = not st.session_state.monitoring
-   
-   if st.session_state.monitoring:
-       st.success("監視中...")
-       if st.button("🎲 着信シミュレート"):
-           test_numbers = ["090-1234-5678", "03-5555-6666", "050-9999-8888", "+1-876-555-1234"]
-           test_number = random.choice(test_numbers)
-           st.session_state.last_check = analyze_phone_number(test_number, use_ai=st.session_state.ai_enabled)
-           st.rerun()
-   else:
-       st.info("停止中")
 
 # メインコンテンツ
 if page == "🔍 番号チェック":
