@@ -878,10 +878,6 @@ else:  # 使い方
 # フッター
 st.markdown("---")
 st.caption("⚠️ このアプリは詐欺電話対策の補助ツールです。最終的な判断はご自身で行ってください。")
-import streamlit as st
-import re
-import requests
-from datetime import datetime
 
 # ページ設定
 st.set_page_config(
