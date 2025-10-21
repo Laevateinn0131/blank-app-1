@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import re
+from urllib.parse import urlparse
 from datetime import datetime
 import time
 import random
@@ -879,7 +880,6 @@ st.markdown("---")
 st.caption("⚠️ このアプリは詐欺電話対策の補助ツールです。最終的な判断はご自身で行ってください。")
 import streamlit as st
 import re
-from urllib.parse import urlparse
 import requests
 from datetime import datetime
 
