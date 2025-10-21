@@ -12,7 +12,7 @@ try:
    GEMINI_AVAILABLE = True
 except ImportError:
    GEMINI_AVAILABLE = False
-   st.warning("⚠️ Gemini APIがインストールされていません。pip install google-generativeai を実行してください。")
+   
 
 # ページ設定
 st.set_page_config(
