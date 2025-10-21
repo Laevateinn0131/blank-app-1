@@ -877,3 +877,211 @@ else:  # 使い方
 # フッター
 st.markdown("---")
 st.caption("⚠️ このアプリは詐欺電話対策の補助ツールです。最終的な判断はご自身で行ってください。")
+import streamlit as st
+import re
+from urllib.parse import urlparse
+import requests
+from datetime import datetime
+
+# ページ設定
+st.set_page_config(
+    page_title="URLセキュリティチェッカー",
+    page_icon="🔒",
+    layout="wide"
+)
+
+# タイトル
+st.title("🔒 フィッシング詐欺対策 URLチェッカー")
+st.markdown("怪しいURLを検証して、安全性を確認しましょう")
+
+# 危険なパターンのリスト
+SUSPICIOUS_PATTERNS = {
+    'homograph': ['раypal', 'gооgle', 'аmazon', 'микрософт'],
+    'typosquatting': ['paypa1', 'g00gle', 'amaz0n', 'micros0ft', 'facebo0k'],
+    'suspicious_tlds': ['.tk', '.ml', '.ga', '.cf', '.gq', '.buzz', '.club'],
+    'suspicious_keywords': ['verify', 'secure', 'account', 'login', 'banking', 'update', 'suspended', 'confirm', 'password'],
+    'ip_address': r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+}
+
+# 各種URLチェック関数
+def check_url_length(url):
+    """URLの長さをチェック"""
+    if len(url) > 75:
+        return True, f"URLが異常に長い（{len(url)}文字）"
+    return False, None
+
+def check_subdomain_count(url):
+    """サブドメインの数をチェック"""
+    parsed = urlparse(url)
+    domain = parsed.netloc
+    subdomain_count = domain.count('.')
+    if subdomain_count > 3:
+        return True, f"サブドメインが多すぎる（{subdomain_count}個）"
+    return False, None
+
+def check_suspicious_chars(url):
+    """疑わしい文字をチェック"""
+    suspicious = ['@', '//', 'http', 'https']
+    parsed = urlparse(url)
+    path = parsed.path
+
+    # パス内のhttpやhttpsをチェック
+    if 'http' in path or 'https' in path:
+        return True, "URLパスに'http'または'https'が含まれている"
+    
+    # @記号のチェック
+    if '@' in url:
+        return True, "URLに'@'記号が含まれている（フィッシングの手口）"
+    
+    return False, None
+
+def check_homograph_attack(url):
+    """ホモグラフ攻撃をチェック"""
+    for word in SUSPICIOUS_PATTERNS['homograph']:
+        if word in url.lower():
+            return True, f"類似文字を使った偽装の可能性: '{word}'"
+    return False, None
+
+def check_typosquatting(url):
+    """タイポスクワッティングをチェック"""
+    for word in SUSPICIOUS_PATTERNS['typosquatting']:
+        if word in url.lower():
+            return True, f"スペルミスを狙った偽装の可能性: '{word}'"
+    return False, None
+
+def check_suspicious_tld(url):
+    """疑わしいTLDをチェック"""
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+    for tld in SUSPICIOUS_PATTERNS['suspicious_tlds']:
+        if domain.endswith(tld):
+            return True, f"疑わしいトップレベルドメイン: {tld}"
+    return False, None
+
+def check_ip_address(url):
+    """IPアドレスの使用をチェック"""
+    parsed = urlparse(url)
+    if re.match(SUSPICIOUS_PATTERNS['ip_address'], parsed.netloc):
+        return True, "ドメイン名の代わりにIPアドレスを使用"
+    return False, None
+
+def check_suspicious_keywords(url):
+    """疑わしいキーワードをチェック"""
+    url_lower = url.lower()
+    found_keywords = []
+    for keyword in SUSPICIOUS_PATTERNS['suspicious_keywords']:
+        if keyword in url_lower:
+            found_keywords.append(keyword)
+    
+    if len(found_keywords) >= 2:
+        return True, f"複数の疑わしいキーワード: {', '.join(found_keywords)}"
+    return False, None
+
+def check_https(url):
+    """HTTPSの使用をチェック"""
+    if not url.startswith('https://'):
+        return True, "HTTPSを使用していない（セキュアな接続ではない）"
+    return False, None
+
+def analyze_url(url):
+    """URLを総合的に分析"""
+    warnings = []
+    risk_score = 0
+
+    checks = [
+        check_url_length,
+        check_subdomain_count,
+        check_suspicious_chars,
+        check_homograph_attack,
+        check_typosquatting,
+        check_suspicious_tld,
+        check_ip_address,
+        check_suspicious_keywords,
+        check_https
+    ]
+    
+    for check in checks:
+        is_suspicious, message = check(url)
+        if is_suspicious:
+            warnings.append(message)
+            risk_score += 10
+
+    # リスクレベルの判定
+    if risk_score >= 30:
+        risk_level = "高危険"
+        color = "red"
+    elif risk_score >= 15:
+        risk_level = "中危険"
+        color = "orange"
+    elif risk_score > 0:
+        risk_level = "低危険"
+        color = "yellow"
+    else:
+        risk_level = "安全"
+        color = "green"
+    
+    return risk_level, warnings, risk_score, color
+
+# メインUI
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    url_input = st.text_input(
+        "チェックしたいURLを入力してください:",
+        placeholder="https://example.com",
+        help="完全なURLを入力してください（http://またはhttps://から始まる）"
+    )
+
+    if st.button("🔍 URLをチェック", type="primary"):
+        if url_input:
+            if not url_input.startswith(('http://', 'https://')):
+                st.error("⚠️ 有効なURLを入力してください（http://またはhttps://から始まる必要があります）")
+            else:
+                with st.spinner("URLを分析中..."):
+                    risk_level, warnings, risk_score, color = analyze_url(url_input)
+                    # 結果表示
+                    st.markdown("---")
+                    st.subheader("📊 分析結果")
+                    # リスクレベル表示
+                    if color == "red":
+                        st.error(f"🚨 リスクレベル: **{risk_level}** （スコア: {risk_score}）")
+                    elif color == "orange":
+                        st.warning(f"⚠️ リスクレベル: **{risk_level}** （スコア: {risk_score}）")
+                    elif color == "yellow":
+                        st.info(f"ℹ️ リスクレベル: **{risk_level}** （スコア: {risk_score}）")
+                    else:
+                        st.success(f"✅ リスクレベル: **{risk_level}** （スコア: {risk_score}）")
+                    
+                    # 警告表示
+                    if warnings:
+                        st.markdown("### ⚠️ 検出された問題点:")
+                        for i, warning in enumerate(warnings, 1):
+                            st.markdown(f"{i}. {warning}")
+                        st.markdown("### 🛡️ 推奨事項:")
+                        st.markdown("""
+                            - このURLにアクセスしないでください
+                            - 個人情報やパスワードを入力しないでください
+                            - 送信者が信頼できる相手か確認してください
+                            - 公式サイトから直接アクセスしてください
+                        """)
+                    else:
+                        st.markdown("### ✅ このURLは安全と思われます")
+                        st.markdown("ただし、100%の安全を保証するものではありません。常に注意を払ってください。")
+                    
+                    # URL詳細情報
+                    parsed = urlparse(url_input)
+                    st.markdown("### 🔍 URL詳細情報")
+                    st.json({
+                        "プロトコル": parsed.scheme,
+                        "ドメイン": parsed.netloc,
+                        "パス": parsed.path if parsed.path else "/",
+                        "クエリ": parsed.query if parsed.query else "なし"
+                    })
+        else:
+            st.warning("URLを入力してください")
+
+with col2:
+    st.markdown("### 📚 フィッシング詐欺について")
+    st.markdown("""
+        フィッシング詐欺は、偽のウェブサイトを使って個人情報を盗み取る犯罪です。通常、公式なWebサイトと似たようなドメイン名やデザインを使用します。URLが怪しい場合、決して個人情報を入力せず、公式なサイトで再確認することが重要です。
+    """)
